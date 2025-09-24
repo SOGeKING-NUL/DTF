@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import "./DTFContract.sol";
+import "./IndexedDTF.sol";
 import "./utils/DTFConstants.sol";
 import "./utils/UniswapV4Types.sol";
 
@@ -53,7 +53,7 @@ contract DTFFactory is DTFConstants, Ownable, ReentrancyGuard{
         _validateParams(name, symbol, tokens, weights);   
 
         //deploy new contract 
-        DTFContract dtf = new DTFContract({
+        IndexedDTF dtf = new IndexedDTF({
             _name: name,
             _symbol: symbol,
             _tokens: tokens,

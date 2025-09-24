@@ -23,7 +23,7 @@ import {console} from "../lib/forge-std/src/console.sol";
 import "./utils/DTFConstants.sol";
 import "./utils/UniswapV4Types.sol";
 
-contract DTFContract is DTFConstants, ReentrancyGuard, ERC20, Ownable {
+contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
 
     //EVENTS
     event DTFTokensMinted(uint256 investedETH, uint256 dtfTokensMinted, address indexed to);
