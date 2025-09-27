@@ -122,6 +122,15 @@ contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
         }
         return ethValue + erc20Value;
     }
+    
+    function getPricePerToken() public returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) {
+            return 1e18;
+        }
+        uint256 portfolioValue = getCurrentPortfolioValue();
+        return (portfolioValue * 1e18) / supply;
+    }
 
     //INTERNAL FUNCTIONS
     function _mintWithEth(uint256 amount, address to, uint256 slippageBps ) internal{
@@ -129,10 +138,12 @@ contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
         uint256 investedAmount= amount - fee;
 
         //buy underlying assets using the universal router
+        uint256 portfolioValueBefore = getCurrentPortfolioValue();
         _buyUnderlyingTokensWithETH(investedAmount, slippageBps);
+        uint256 portfolioValueAfter = getCurrentPortfolioValue();
 
         //Calculate and mint DTF tokens to user
-        uint256 dtfTokensToMint= _calculateDTFTokensToMint(investedAmount);
+        uint256 dtfTokensToMint= _calculateDTFTokensToMint(portfolioValueBefore, portfolioValueAfter);
         _mint(to, dtfTokensToMint);
 
         //update state variable
@@ -333,17 +344,16 @@ contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
         require(ethReceived >= amountOutMinimum, "Insufficient ETH received");          
     }
  
-    function _calculateDTFTokensToMint(uint256 amount) internal returns(uint256) {
+    function _calculateDTFTokensToMint(uint256 portfolioValueBefore, uint256 portfolioValueAfter) internal view returns(uint256) {
+        uint256 addedValue = portfolioValueAfter - portfolioValueBefore;
         if(totalSupply() == 0) {
-            return amount; // First mint: 1 ETH = 1 DTF
+            return addedValue; // First mint: 1 ETH = 1 DTF
         } else {
-            uint256 currentPortfolioValue = getCurrentPortfolioValue();
-            
             // If portfolio has no value, something's wrong
-            require(currentPortfolioValue > 0, "Portfolio has no value");
+            require(portfolioValueBefore > 0, "Portfolio has no value");
             
-            // DTF tokens to mint = (ETH invested * current total supply) / current portfolio value
-            return (amount * totalSupply()) / currentPortfolioValue;
+            // DTF tokens to mint = (added value * current total supply) / previous portfolio value
+            return (addedValue * totalSupply()) / portfolioValueBefore;
         }
     }
 
@@ -542,7 +552,7 @@ contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
         for (uint256 i = 0; i < tokens.length; i++) {
             tokenAddresses[i] = tokens[i];
             balances[i] = tokenBalance[tokens[i]];
-            _weights[i] = _weights[i]; // Copy weights array
+            _weights[i] = weights[i]; // Copy weights array
             if (tokens[i] == address(0)) {
                 ethValues[i] = balances[i]; // ETH value is same as balance
             } else {
@@ -565,7 +575,8 @@ contract IndexedDTF is DTFConstants, ReentrancyGuard, ERC20, Ownable {
 
         fee = (ethAmount * MINT_FEES_BPS) / BASIC_POINTS;
         uint256 investedAmount = ethAmount - fee;
-        dtfTokens = _calculateDTFTokensToMint(investedAmount);
+        uint256 pricePerToken = getPricePerToken();
+        dtfTokens = (investedAmount * 1e18) / pricePerToken; // Basic estimate without slippage
     }
 
     function getActiveStatus() external view returns (bool) {
